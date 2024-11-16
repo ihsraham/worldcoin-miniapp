@@ -1,5 +1,4 @@
-// SpaceInvaders.tsx
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ScoreDisplay } from "./components/game/ScoreDisplay";
 import { LevelProgress } from "./components/game/LevelProgress";
 import { GameOverlay } from "./components/game/GameOverlay";
