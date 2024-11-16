@@ -19,9 +19,12 @@ export default function App() {
         height="600"
         className="border-2 border-gray-500"
       />
+      <div id="level-up" className="text-white text-xl mt-4 hidden">
+        Level 1!
+      </div>
       <div className="text-white mt-4">
         <p id="score">Score: 0</p>
-        <p>Level: 1</p>
+        <p id="level">Level: 1</p>
       </div>
     </main>
   );
