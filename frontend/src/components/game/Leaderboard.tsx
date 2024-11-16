@@ -1,3 +1,4 @@
+// components/game/Leaderboard.tsx
 import { useEffect, useState } from "react";
 import {
   AlertDialog,
@@ -5,6 +6,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../ui/alert-dialog";
+import { Button } from "../ui/button";
 
 interface LeaderboardScore {
   score: number;
@@ -29,7 +31,7 @@ export const Leaderboard = ({
   useEffect(() => {
     const fetchScores = async () => {
       try {
-        const response = await fetch("/api/verify-score");
+        const response = await fetch("http://localhost:3001/api/verify-score");
         const data = await response.json();
         setScores(data);
       } catch (error) {
@@ -71,6 +73,9 @@ export const Leaderboard = ({
                       </span>
                     </div>
                   ))}
+                  <div className="mt-4 flex justify-center">
+                    <Button onClick={onClose}>Close</Button>
+                  </div>
                 </div>
               )}
             </div>

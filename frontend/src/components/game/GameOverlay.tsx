@@ -21,9 +21,6 @@ interface GameOverlayProps {
   highScore: number;
 }
 
-const [showVerification, setShowVerification] = useState(false);
-const [showLeaderboard, setShowLeaderboard] = useState(false);
-
 export const GameOverlay: React.FC<GameOverlayProps> = ({
   isLevelUp,
   isBossLevel,
@@ -35,7 +32,9 @@ export const GameOverlay: React.FC<GameOverlayProps> = ({
   finalScore,
   highScore,
 }) => {
+  // Move hooks inside the component
   const [showVerification, setShowVerification] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
 
   useEffect(() => {
     if (isGameOver && finalScore > highScore) {
@@ -110,7 +109,6 @@ export const GameOverlay: React.FC<GameOverlayProps> = ({
       {showVerification && (
         <VerifiedScoreSubmission
           score={finalScore}
-          previousHighScore={highScore}
           onSubmissionComplete={handleSubmissionComplete}
         />
       )}
@@ -118,7 +116,9 @@ export const GameOverlay: React.FC<GameOverlayProps> = ({
       {showLeaderboard && (
         <Leaderboard
           isOpen={true}
-          onClose={() => setShowLeaderboard(false)}
+          onClose={() => {
+            setShowLeaderboard(false);
+          }}
           currentScore={finalScore}
         />
       )}

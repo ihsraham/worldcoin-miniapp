@@ -1,4 +1,3 @@
-// pages/api/verify-score.ts
 import { NextApiRequest, NextApiResponse } from 'next';
 import { verifyCloudProof } from '@worldcoin/idkit';
 import fs from 'fs';

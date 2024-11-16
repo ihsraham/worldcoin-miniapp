@@ -14,18 +14,16 @@ import {
 
 interface VerifiedScoreSubmissionProps {
   score: number;
-  previousHighScore: number;
   onSubmissionComplete: () => void;
 }
 
 export const VerifiedScoreSubmission = ({
   score,
-  previousHighScore,
   onSubmissionComplete,
 }: VerifiedScoreSubmissionProps) => {
   const handleVerify = async (proof: ISuccessResult) => {
     try {
-      const response = await fetch("/api/verify-score", {
+      const response = await fetch("http://localhost:3001/api/verify-score", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -51,14 +49,13 @@ export const VerifiedScoreSubmission = ({
         })
       );
 
-      // Call onSubmissionComplete to trigger leaderboard display
       onSubmissionComplete();
     } catch (error) {
       console.error("Error verifying score:", error);
     }
   };
 
-  const appId = "app_0b25c0e41ad700c4716ff0054420c269" as `app_${string}`;
+  const appId = process.env.NEXT_PUBLIC_WLD_APP_ID as `app_${string}`;
 
   return (
     <AlertDialog open={true}>
