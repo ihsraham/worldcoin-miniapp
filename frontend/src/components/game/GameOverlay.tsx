@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -5,6 +6,8 @@ import {
   AlertDialogTitle,
 } from "../ui/alert-dialog";
 import { Button } from "../ui/button";
+import { VerifiedScoreSubmission } from "./VerifiedScoreSubmission";
+import { Leaderboard } from "./Leaderboard";
 
 interface GameOverlayProps {
   isLevelUp: boolean;
@@ -18,6 +21,9 @@ interface GameOverlayProps {
   highScore: number;
 }
 
+const [showVerification, setShowVerification] = useState(false);
+const [showLeaderboard, setShowLeaderboard] = useState(false);
+
 export const GameOverlay: React.FC<GameOverlayProps> = ({
   isLevelUp,
   isBossLevel,
@@ -29,6 +35,19 @@ export const GameOverlay: React.FC<GameOverlayProps> = ({
   finalScore,
   highScore,
 }) => {
+  const [showVerification, setShowVerification] = useState(false);
+
+  useEffect(() => {
+    if (isGameOver && finalScore > highScore) {
+      setShowVerification(true);
+    }
+  }, [isGameOver, finalScore, highScore]);
+
+  const handleSubmissionComplete = () => {
+    setShowVerification(false);
+    setShowLeaderboard(true);
+  };
+
   return (
     <>
       <AlertDialog open={isLevelUp}>
@@ -75,7 +94,7 @@ export const GameOverlay: React.FC<GameOverlayProps> = ({
             <p className="text-xl text-gray-300 mb-4">
               Final Score: {finalScore}
             </p>
-            {finalScore === highScore && (
+            {finalScore === highScore && !showVerification && (
               <p className="text-lg text-yellow-400 mb-4">New High Score!</p>
             )}
             <Button
@@ -86,6 +105,22 @@ export const GameOverlay: React.FC<GameOverlayProps> = ({
             </Button>
           </div>
         </div>
+      )}
+
+      {showVerification && (
+        <VerifiedScoreSubmission
+          score={finalScore}
+          previousHighScore={highScore}
+          onSubmissionComplete={handleSubmissionComplete}
+        />
+      )}
+
+      {showLeaderboard && (
+        <Leaderboard
+          isOpen={true}
+          onClose={() => setShowLeaderboard(false)}
+          currentScore={finalScore}
+        />
       )}
     </>
   );
