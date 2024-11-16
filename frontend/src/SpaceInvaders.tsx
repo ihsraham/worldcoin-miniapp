@@ -24,6 +24,12 @@ const SpaceInvaders = () => {
   );
   const [levelProgress, setLevelProgress] = useState(0);
   const [isBossLevel, setIsBossLevel] = useState(false);
+  const handleRestart = () => {
+    setScore(0);
+    setLevel(1);
+    setIsBossLevel(false);
+    setGameState("playing");
+  };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -40,6 +46,8 @@ const SpaceInvaders = () => {
       width: 50,
       height: 50,
       speed: 5,
+      lastShot: 0,
+      fireRate: 250, // 250ms between shots
     };
 
     let projectiles: any[] = [];
@@ -53,10 +61,13 @@ const SpaceInvaders = () => {
     const storedHighScore = localStorage.getItem("spaceInvadersHighScore");
     if (storedHighScore) setHighScore(parseInt(storedHighScore));
 
-    // Initialize game assets (implemented as SVG paths for better graphics)
+    // Initialize game assets
     const playerPath = new Path2D("M25,0 L50,50 L0,50 Z");
     const enemyPath = new Path2D("M0,0 H40 L20,20 Z");
-    const bossPath = new Path2D("M0,0 H80 L40,40 Z");
+    const bossPath = new Path2D(`
+      M40,0 L80,40 L60,80 L20,80 L0,40 L40,0
+      M20,20 L60,20 L60,60 L20,60 L20,20
+    `);
 
     // Particle effect system
     const createParticles = (x: number, y: number, color: string) => {
@@ -75,17 +86,22 @@ const SpaceInvaders = () => {
       }
     };
 
-    // Boss creation
+    // Boss creation with improved health scaling
     const createBoss = () => {
       setIsBossLevel(true);
+      const bossLevel = Math.floor(level / 5);
+      const bossHealth = 100 + (bossLevel - 1) * 50; // Health increases each boss level
       boss = {
         x: canvas.width / 2 - 40,
         y: 50,
         width: 80,
         height: 80,
-        health: 100,
+        health: bossHealth,
+        maxHealth: bossHealth,
         pattern: 0,
         lastShot: 0,
+        phase: 0,
+        shootingPattern: 0,
       };
     };
 
@@ -93,14 +109,12 @@ const SpaceInvaders = () => {
     const spawnEnemies = () => {
       const rows = Math.min(2 + Math.floor(level / 2), 5);
       const cols = Math.min(4 + Math.floor(level / 3), 8);
-
-      // Calculate spacing to fit all enemies on screen
-      const spacing = (canvas.width - 100) / (cols - 1); // 100px margin total
+      const spacing = (canvas.width - 100) / (cols - 1);
 
       for (let i = 0; i < rows; i++) {
         for (let j = 0; j < cols; j++) {
           enemies.push({
-            x: 50 + j * spacing, // Start 50px from left edge
+            x: 50 + j * spacing,
             y: 50 + i * 60,
             width: 40,
             height: 40,
@@ -111,7 +125,20 @@ const SpaceInvaders = () => {
       }
     };
 
-    // Touch controls
+    // Simple shooting mechanism with rate limit
+    const shoot = () => {
+      const now = Date.now();
+      if (now - player.lastShot >= player.fireRate) {
+        projectiles.push({
+          x: player.x + player.width / 2,
+          y: player.y,
+          radius: 4,
+          velocity: { x: 0, y: -7 },
+        });
+        player.lastShot = now;
+      }
+    };
+    // Controls
     const handleTouchStart = (e: TouchEvent) => {
       touchStartX = e.touches[0].clientX;
     };
@@ -128,20 +155,12 @@ const SpaceInvaders = () => {
     };
 
     const handleTouchEnd = () => {
-      // Shoot on touch release
-      projectiles.push({
-        x: player.x + player.width / 2,
-        y: player.y,
-        radius: 4,
-      });
-
-      // Trigger haptic feedback if available
+      shoot();
       if (navigator.vibrate) {
         navigator.vibrate(50);
       }
     };
 
-    // Keyboard controls
     const handleKeyDown = (e: KeyboardEvent) => {
       if (gameState !== "playing") return;
 
@@ -155,21 +174,42 @@ const SpaceInvaders = () => {
           if (player.x + player.width > canvas.width)
             player.x = canvas.width - player.width;
           break;
-        case " ": // Spacebar
-          projectiles.push({
-            x: player.x + player.width / 2,
-            y: player.y,
-            radius: 4,
-          });
+        case " ":
+          shoot();
           break;
-        case "p": // Add pause functionality
+        case "p":
           setGameState((prev) => (prev === "playing" ? "paused" : "playing"));
           break;
       }
     };
 
+    // Calculate level progress
+    const calculateProgress = () => {
+      if (isBossLevel) {
+        return boss
+          ? Math.max(0, 100 - (boss.health / boss.maxHealth) * 100)
+          : 100;
+      } else {
+        const initialEnemyCount =
+          Math.min(2 + Math.floor(level / 2), 5) *
+          Math.min(4 + Math.floor(level / 3), 8);
+        return Math.floor(
+          ((initialEnemyCount - enemies.length) / initialEnemyCount) * 100
+        );
+      }
+    };
+
     // Main game loop
     const render = () => {
+      if (gameState === "over") {
+        // Save high score
+        if (score > highScore) {
+          localStorage.setItem("spaceInvadersHighScore", score.toString());
+          setHighScore(score);
+        }
+        return;
+      }
+
       if (gameState !== "playing") return;
 
       ctx.fillStyle = "#000033";
@@ -204,6 +244,7 @@ const SpaceInvaders = () => {
 
       // Update and draw projectiles
       projectiles.forEach((projectile, index) => {
+        projectile.x += projectile.velocity?.x || 0;
         projectile.y -= 7;
 
         if (projectile.y < 0) {
@@ -223,7 +264,6 @@ const SpaceInvaders = () => {
         switch (enemy.pattern) {
           case 0: // Sine wave
             enemy.x += Math.sin(enemy.phase) * 2;
-            // Constrain horizontal movement
             enemy.x = Math.max(
               0,
               Math.min(canvas.width - enemy.width, enemy.x)
@@ -235,7 +275,6 @@ const SpaceInvaders = () => {
             const nextX = enemy.x + Math.cos(enemy.phase) * 2;
             const nextY = enemy.y + Math.sin(enemy.phase) * 2;
 
-            // Only update position if within bounds
             if (nextX >= 0 && nextX <= canvas.width - enemy.width) {
               enemy.x = nextX;
             }
@@ -248,12 +287,29 @@ const SpaceInvaders = () => {
           case 2: // Dive
             if (Math.random() < 0.01) {
               const nextY = enemy.y + 5;
-              // Only dive if within vertical bounds
               if (nextY <= canvas.height - enemy.height) {
                 enemy.y = nextY;
               }
             }
             break;
+        }
+
+        // Check if enemy hits player or reaches bottom
+        if (
+          (enemy.y + enemy.height >= player.y &&
+            enemy.x < player.x + player.width &&
+            enemy.x + enemy.width > player.x) ||
+          enemy.y + enemy.height >= canvas.height
+        ) {
+          createParticles(
+            player.x + player.width / 2,
+            player.y + player.height / 2,
+            "#00ff00"
+          );
+          if (navigator.vibrate) {
+            navigator.vibrate(200);
+          }
+          setGameState("over");
         }
 
         ctx.save();
@@ -262,7 +318,7 @@ const SpaceInvaders = () => {
         ctx.fill(enemyPath);
         ctx.restore();
 
-        // Collision detection with projectiles
+        // Collision detection with player projectiles
         projectiles.forEach((projectile, pIndex) => {
           if (
             projectile.x > enemy.x &&
@@ -279,32 +335,53 @@ const SpaceInvaders = () => {
             projectiles.splice(pIndex, 1);
             setScore((prev) => prev + 100);
 
-            // Haptic feedback for hit
             if (navigator.vibrate) {
               navigator.vibrate(100);
             }
           }
         });
       });
-
       // Boss logic
       if (boss) {
-        boss.x += Math.cos(Date.now() / 1000) * 3;
+        // Boss movement pattern
+        boss.phase += 0.02;
+        boss.x = canvas.width / 2 + Math.cos(boss.phase) * (canvas.width / 3);
 
+        // Boss shooting patterns
         if (Date.now() - boss.lastShot > 1000) {
-          // Boss shooting pattern
-          const angle = Math.atan2(player.y - boss.y, player.x - boss.x);
+          boss.shootingPattern = (boss.shootingPattern + 1) % 2;
 
-          for (let i = -1; i <= 1; i++) {
-            bossProjectiles.push({
-              x: boss.x + boss.width / 2,
-              y: boss.y + boss.height,
-              velocity: {
-                x: Math.cos(angle + i * 0.2) * 5,
-                y: Math.sin(angle + i * 0.2) * 5,
-              },
-              radius: 6,
-            });
+          if (boss.shootingPattern === 0) {
+            // Pattern 1: Aimed shots at player with spread
+            const angleToPlayer = Math.atan2(
+              player.y - boss.y,
+              player.x - boss.x
+            );
+            for (let i = -2; i <= 2; i++) {
+              bossProjectiles.push({
+                x: boss.x + boss.width / 2,
+                y: boss.y + boss.height,
+                velocity: {
+                  x: Math.cos(angleToPlayer + i * 0.2) * 5,
+                  y: Math.sin(angleToPlayer + i * 0.2) * 5,
+                },
+                radius: 6,
+              });
+            }
+          } else {
+            // Pattern 2: Circular pattern
+            for (let i = 0; i < 8; i++) {
+              const angle = (i / 8) * Math.PI * 2;
+              bossProjectiles.push({
+                x: boss.x + boss.width / 2,
+                y: boss.y + boss.height / 2,
+                velocity: {
+                  x: Math.cos(angle) * 4,
+                  y: Math.sin(angle) * 4,
+                },
+                radius: 4,
+              });
+            }
           }
 
           boss.lastShot = Date.now();
@@ -315,7 +392,6 @@ const SpaceInvaders = () => {
           projectile.x += projectile.velocity.x;
           projectile.y += projectile.velocity.y;
 
-          // Remove projectiles that are off screen
           if (
             projectile.x < 0 ||
             projectile.x > canvas.width ||
@@ -326,7 +402,6 @@ const SpaceInvaders = () => {
             return;
           }
 
-          // Draw boss projectiles
           ctx.fillStyle = "#ff4444";
           ctx.beginPath();
           ctx.arc(
@@ -345,7 +420,6 @@ const SpaceInvaders = () => {
             projectile.y > player.y &&
             projectile.y < player.y + player.height
           ) {
-            // Player hit by boss projectile
             createParticles(
               player.x + player.width / 2,
               player.y + player.height / 2,
@@ -353,16 +427,20 @@ const SpaceInvaders = () => {
             );
             bossProjectiles.splice(index, 1);
 
-            // Trigger haptic feedback for hit
             if (navigator.vibrate) {
               navigator.vibrate(200);
             }
 
-            // You might want to implement player health/lives system here
-            // For now, let's just end the game
             setGameState("over");
           }
         });
+
+        // Draw boss
+        ctx.save();
+        ctx.translate(boss.x, boss.y);
+        ctx.fillStyle = "#ff0000";
+        ctx.fill(bossPath);
+        ctx.restore();
 
         // Boss collision with player projectiles
         projectiles.forEach((projectile, pIndex) => {
@@ -381,11 +459,17 @@ const SpaceInvaders = () => {
             boss.health -= 10;
 
             if (boss.health <= 0) {
+              createParticles(
+                boss.x + boss.width / 2,
+                boss.y + boss.height / 2,
+                "#ff0000"
+              );
+              createParticles(boss.x, boss.y, "#ff0000");
+              createParticles(boss.x + boss.width, boss.y, "#ff0000");
               boss = null;
               setIsBossLevel(false);
-              setScore((prev) => prev + 1000); // Bonus points for defeating boss
+              setScore((prev) => prev + 1000);
 
-              // Trigger intense haptic feedback for boss defeat
               if (navigator.vibrate) {
                 navigator.vibrate([100, 50, 100, 50, 100]);
               }
@@ -393,36 +477,44 @@ const SpaceInvaders = () => {
           }
         });
 
-        ctx.save();
-        ctx.translate(boss.x, boss.y);
-        ctx.fillStyle = "#ff0000";
-        ctx.fill(bossPath);
-        ctx.restore();
-
         // Draw boss health bar
+        const healthBarWidth = 200;
+        const healthBarHeight = 10;
+        const healthPercentage = boss.health / boss.maxHealth;
+
+        // Health bar background
         ctx.fillStyle = "#330000";
-        ctx.fillRect(10, 10, 200, 10);
+        ctx.fillRect(
+          (canvas.width - healthBarWidth) / 2,
+          10,
+          healthBarWidth,
+          healthBarHeight
+        );
+
+        // Health bar fill
         ctx.fillStyle = "#ff0000";
-        ctx.fillRect(10, 10, (boss.health / 100) * 200, 10);
+        ctx.fillRect(
+          (canvas.width - healthBarWidth) / 2,
+          10,
+          healthBarWidth * healthPercentage,
+          healthBarHeight
+        );
       }
 
-      // Level progress
-      const progress =
-        enemies.length === 0 && !boss
-          ? 100
-          : Math.floor(
-              ((level % 5 === 0 ? boss?.health : enemies.length) /
-                (level % 5 === 0 ? 100 : enemies.length)) *
-                100
-            );
-      setLevelProgress(100 - progress);
+      // Level progress and completion
+      setLevelProgress(calculateProgress());
 
       // Level completion check
-      if (enemies.length === 0 && !boss) {
+      if ((isBossLevel && !boss) || (!isBossLevel && enemies.length === 0)) {
         setLevel((prev) => prev + 1);
         setIsLevelUp(true);
 
-        if (level % 5 === 0) {
+        // Check if next level should be a boss level
+        const nextLevel = level + 1;
+        const shouldBeBossLevel = nextLevel % 5 === 0;
+        setIsBossLevel(shouldBeBossLevel);
+
+        if (shouldBeBossLevel) {
           createBoss();
         } else {
           spawnEnemies();
@@ -433,7 +525,6 @@ const SpaceInvaders = () => {
 
       animationFrameId = requestAnimationFrame(render);
     };
-
     // Event listeners
     window.addEventListener("keydown", handleKeyDown);
     canvas.addEventListener("touchstart", handleTouchStart);
@@ -476,6 +567,10 @@ const SpaceInvaders = () => {
         level={level}
         onResume={() => setGameState("playing")}
         isPaused={gameState === "paused"}
+        isGameOver={gameState === "over"}
+        onRestart={handleRestart}
+        finalScore={score}
+        highScore={highScore}
       />
 
       <div className="absolute bottom-4 left-4 text-white text-sm bg-black/50 p-2 rounded-lg backdrop-blur-sm">

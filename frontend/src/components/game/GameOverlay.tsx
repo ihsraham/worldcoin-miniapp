@@ -10,17 +10,25 @@ interface GameOverlayProps {
   isLevelUp: boolean;
   isBossLevel: boolean;
   level: number;
-  onResume?: () => void;
+  onResume: () => void;
   isPaused: boolean;
+  isGameOver: boolean;
+  onRestart: () => void;
+  finalScore: number;
+  highScore: number;
 }
 
-export const GameOverlay = ({
+export const GameOverlay: React.FC<GameOverlayProps> = ({
   isLevelUp,
   isBossLevel,
   level,
   onResume,
   isPaused,
-}: GameOverlayProps) => {
+  isGameOver,
+  onRestart,
+  finalScore,
+  highScore,
+}) => {
   return (
     <>
       <AlertDialog open={isLevelUp}>
@@ -55,6 +63,26 @@ export const GameOverlay = ({
             <h2 className="text-3xl font-bold text-white mb-4">Game Paused</h2>
             <Button onClick={onResume} size="lg" className="animate-pulse">
               Resume Game
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {isGameOver && (
+        <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center">
+          <div className="text-center bg-gray-900 p-8 rounded-lg border-2 border-red-500">
+            <h2 className="text-3xl font-bold text-white mb-2">Game Over!</h2>
+            <p className="text-xl text-gray-300 mb-4">
+              Final Score: {finalScore}
+            </p>
+            {finalScore === highScore && (
+              <p className="text-lg text-yellow-400 mb-4">New High Score!</p>
+            )}
+            <Button
+              onClick={onRestart}
+              size="lg"
+              className="animate-pulse bg-red-500 hover:bg-red-600">
+              Play Again
             </Button>
           </div>
         </div>
