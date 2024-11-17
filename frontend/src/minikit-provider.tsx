@@ -1,12 +1,24 @@
+// minikit-provider.tsx
+import { useEffect, type ReactNode } from "react";
 import { MiniKit } from "@worldcoin/minikit-js";
-import { ReactNode, useEffect } from "react";
 
-export default function MiniKitProvider({ children }: { children: ReactNode }) {
+interface MiniKitProviderProps {
+  children: ReactNode;
+}
+
+export default function MiniKitProvider({ children }: MiniKitProviderProps) {
   useEffect(() => {
-    MiniKit.install("app_0b25c0e41ad700c4716ff0054420c269");
-  }, []);
+    const init = async () => {
+      try {
+        MiniKit.install();
+        console.log("MiniKit installed successfully");
+      } catch (error) {
+        console.error("Error installing MiniKit:", error);
+      }
+    };
 
-  console.log("Is MiniKit installed correctly? ", MiniKit.isInstalled());
+    init();
+  }, []);
 
   return <>{children}</>;
 }

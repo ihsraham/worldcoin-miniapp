@@ -1,5 +1,2 @@
-const isDev = import.meta.env.MODE === 'development';
-export const API_BASE_URL = isDev 
-  ? "http://localhost:3001"
-  : "https://worldcoin-miniapp.vercel.app";
-    
+export const API_BASE_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:3001";

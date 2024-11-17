@@ -7,8 +7,10 @@
       },
       {
         "src": "package.json",
-        "use": "@vercel/static-build",
-        "config": { "distDir": "dist" }
+        "use": "@vercel/vite",
+        "config": {
+          "buildCommand": "vite build"
+        }
       }
     ],
     "routes": [
@@ -17,9 +19,19 @@
         "dest": "server.ts"
       },
       {
+        "src": "/(assets|images)/.*",
+        "dest": "/dist/$0"
+      },
+      {
+        "src": "/verify",
+        "dest": "/dist/index.html"
+      },
+      {
         "src": "/(.*)",
-        "dest": "/index.html"
+        "dest": "/dist/index.html"
       }
-    ]
+    ],
+    "env": {
+      "VITE_ENABLE_ERUDA": "false"
+  }
 }
-    
